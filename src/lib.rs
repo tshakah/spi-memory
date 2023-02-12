@@ -43,6 +43,10 @@ pub trait BlockDevice<Addr, SPI: Transfer<u8>, CS: OutputPin> {
     ///   the lower bits can be ignored in order to make it fit.
     fn erase_sectors(&mut self, addr: Addr, amount: usize) -> Result<(), Error<SPI, CS>>;
 
+    // Erases one block
+    fn erase_block(&mut self, addr: u32) -> Result<(), Error<SPI, CS>>;
+
+
     /// Erases the memory chip fully.
     ///
     /// Warning: Full erase operations can take a significant amount of time.
@@ -56,4 +60,5 @@ pub trait BlockDevice<Addr, SPI: Transfer<u8>, CS: OutputPin> {
     /// * `addr`: The address to write to.
     /// * `data`: The bytes to write to `addr`.
     fn write_bytes(&mut self, addr: Addr, data: &mut [u8]) -> Result<(), Error<SPI, CS>>;
+
 }

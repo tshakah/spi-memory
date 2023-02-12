@@ -141,7 +141,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
         Ok(this)
     }
 
-    fn command(&mut self, bytes: &mut [u8]) -> Result<(), Error<SPI, CS>> {
+    pub fn command(&mut self, bytes: &mut [u8]) -> Result<(), Error<SPI, CS>> {
         // If the SPI transfer fails, make sure to disable CS anyways
         self.cs.set_low().map_err(Error::Gpio)?;
         let spi_result = self.spi.transfer(bytes).map_err(Error::Spi);
@@ -232,6 +232,19 @@ impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<SPI, 
         }
 
         Ok(())
+    }
+
+    fn erase_block(&mut self, addr: u32) -> Result<(), Error<SPI, CS>> {
+        self.write_enable()?;
+
+        let mut cmd_buf = [
+            Opcode::BlockErase as u8,
+            (addr >> 16) as u8,
+            (addr >> 8) as u8,
+            addr as u8,
+        ];
+        self.command(&mut cmd_buf)?;
+        self.wait_done()
     }
 
     fn write_bytes(&mut self, addr: u32, data: &mut [u8]) -> Result<(), Error<SPI, CS>> {
