@@ -23,6 +23,7 @@ pub use crate::error::Error;
 
 use embedded_hal::blocking::spi::Transfer;
 use embedded_hal::digital::v2::OutputPin;
+use series25::FlashInfo;
 
 /// A trait for reading operations from a memory chip.
 pub trait Read<Addr, SPI: Transfer<u8>, CS: OutputPin> {
@@ -46,6 +47,7 @@ pub trait BlockDevice<Addr, SPI: Transfer<u8>, CS: OutputPin> {
     // Erases one block
     fn erase_block(&mut self, addr: u32) -> Result<(), Error<SPI, CS>>;
 
+    fn get_device_info(&mut self)->Result<FlashInfo, Error<SPI, CS>>;
 
     /// Erases the memory chip fully.
     ///
@@ -60,5 +62,6 @@ pub trait BlockDevice<Addr, SPI: Transfer<u8>, CS: OutputPin> {
     /// * `addr`: The address to write to.
     /// * `data`: The bytes to write to `addr`.
     fn write_bytes(&mut self, addr: Addr, data: &mut [u8]) -> Result<(), Error<SPI, CS>>;
+    
 
 }
