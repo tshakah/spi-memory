@@ -1,6 +1,6 @@
 [package]
 name = "w25q"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Jonas Schievink <jonasschievink@gmail.com>", "Henrik Böving <hargonix@gmail.com>", "Diego Frenoux <diego@churrosoft.ar>"]
 edition = "2018"
 description = "A generic driver for different SPI Flash and EEPROM chips"

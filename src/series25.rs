@@ -106,14 +106,24 @@ bitflags! {
 }
 
 pub struct FlashInfo {
-    id: u32,
-    page_size: u16,
-    sector_size: u32,
-    page_count: u32,
-    sector_count: u32,
-    block_size: u32,
-    block_count: u32,
-    capacity_kb: u32,
+    pub id: u32,
+    pub page_size: u16,
+    pub sector_size: u32,
+    pub page_count: u32,
+    pub sector_count: u32,
+    pub block_size: u32,
+    pub block_count: u32,
+    pub capacity_kb: u32,
+}
+
+impl fmt::Debug for FlashInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("FlashInfo")
+            .field(&self.id)
+            .field(&format_args!("_KB:_"))
+            .field(&self.capacity_kb)
+            .finish()
+    }
 }
 
 /// Driver for 25-series SPI Flash chips.
@@ -325,6 +335,28 @@ impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<SPI, 
             capacity_kb: (0x1000 * 16 * block_count) / 1024,
         };
         return Ok(device_info);
+    }
+}
+
+impl FlashInfo {
+    pub fn page_to_sector(&self, page_address: &u32) -> u32 {
+        return (page_address * (self.page_size) as u32) / self.sector_size;
+    }
+
+    pub fn page_to_block(&self, page_address: &u32) -> u32 {
+        return (page_address * (self.page_size) as u32) / self.block_size;
+    }
+
+    pub fn sector_to_block(&self, sector_address: &u32) -> u32 {
+        return (sector_address * (self.sector_size) as u32) / self.block_size;
+    }
+
+    pub fn sector_to_page(&self, sector_address: &u32) -> u32 {
+        return (sector_address * (self.sector_size) as u32) / (self.page_size) as u32;
+    }
+
+    pub fn block_to_page(&self, block_adress: &u32) -> u32 {
+        return (block_adress * (self.block_size) as u32) / (self.page_size) as u32;
     }
 }
 
