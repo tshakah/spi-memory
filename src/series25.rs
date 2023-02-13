@@ -189,7 +189,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
 
         Ok(Status::from_bits_truncate(buf[1]))
     }
-    
+
     pub fn get_device_info(&mut self) -> Result<FlashInfo, Error<SPI, CS>> {
         let mut buf: [u8; 12] = [0; 12];
         buf[0] = Opcode::ReadJedecId as u8;
@@ -227,20 +227,18 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
         return Ok(device_info);
     }
 
-    fn write_enable(&mut self) -> Result<(), Error<SPI, CS>> {
+    pub fn write_enable(&mut self) -> Result<(), Error<SPI, CS>> {
         let mut cmd_buf = [Opcode::WriteEnable as u8];
         self.command(&mut cmd_buf)?;
         Ok(())
     }
 
-    fn wait_done(&mut self) -> Result<(), Error<SPI, CS>> {
+    pub fn wait_done(&mut self) -> Result<(), Error<SPI, CS>> {
         // TODO: Consider changing this to a delay based pattern
         while self.read_status()?.contains(Status::BUSY) {}
         Ok(())
     }
-}
 
-impl<SPI: Transfer<u8>, CS: OutputPin> Read<u32, SPI, CS> for Flash<SPI, CS> {
     /// Reads flash contents into `buf`, starting at `addr`.
     ///
     /// Note that `addr` is not fully decoded: Flash chips will typically only
@@ -253,7 +251,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Read<u32, SPI, CS> for Flash<SPI, CS> {
     ///
     /// * `addr`: 24-bit address to start reading at.
     /// * `buf`: Destination buffer to fill.
-    fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Error<SPI, CS>> {
+    pub fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Error<SPI, CS>> {
         // TODO what happens if `buf` is empty?
 
         let mut cmd_buf = [
@@ -271,10 +269,8 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Read<u32, SPI, CS> for Flash<SPI, CS> {
         self.cs.set_high().map_err(Error::Gpio)?;
         spi_result.map(|_| ()).map_err(Error::Spi)
     }
-}
 
-impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<SPI, CS> {
-    fn erase_sectors(&mut self, addr: u32, amount: usize) -> Result<(), Error<SPI, CS>> {
+    pub fn erase_sectors(&mut self, addr: u32, amount: usize) -> Result<(), Error<SPI, CS>> {
         for c in 0..amount {
             self.write_enable()?;
 
@@ -292,7 +288,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<SPI, 
         Ok(())
     }
 
-    fn erase_block(&mut self, addr: u32) -> Result<(), Error<SPI, CS>> {
+    pub fn erase_block(&mut self, addr: u32) -> Result<(), Error<SPI, CS>> {
         self.write_enable()?;
 
         let mut cmd_buf = [
@@ -305,7 +301,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<SPI, 
         self.wait_done()
     }
 
-    fn write_bytes(&mut self, addr: u32, data: &mut [u8]) -> Result<(), Error<SPI, CS>> {
+    pub fn write_bytes(&mut self, addr: u32, data: &mut [u8]) -> Result<(), Error<SPI, CS>> {
         for (c, chunk) in data.chunks_mut(256).enumerate() {
             self.write_enable()?;
 
@@ -329,14 +325,13 @@ impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<SPI, 
         Ok(())
     }
 
-    fn erase_all(&mut self) -> Result<(), Error<SPI, CS>> {
+    pub fn erase_all(&mut self) -> Result<(), Error<SPI, CS>> {
         self.write_enable()?;
         let mut cmd_buf = [Opcode::ChipErase as u8];
         self.command(&mut cmd_buf)?;
         self.wait_done()?;
         Ok(())
     }
-
 }
 
 impl FlashInfo {
