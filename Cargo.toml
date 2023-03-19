@@ -1,7 +1,7 @@
 [package]
 name = "w25q"
-version = "0.2.5"
-authors = ["Jonas Schievink <jonasschievink@gmail.com>", "Henrik Böving <hargonix@gmail.com>", "Diego Frenoux <diego@churrosoft.ar>"]
+version = "0.2.6"
+authors = ["Jonas Schievink <jonasschievink@gmail.com>", "Henrik Böving <hargonix@gmail.com>", "David O'Connor <the_alchemist@fastmail.com>", "Diego Frenoux <diego@churrosoft.ar>"]
 edition = "2018"
 description = "A generic driver for different SPI Flash and EEPROM chips"
 documentation = "https://docs.rs/spi-memory/"
@@ -37,7 +37,7 @@ search  = "https://docs.rs/w25q/[a-z0-9\\.-]+"
 replace = "https://docs.rs/w25q/{{version}}"
 
 [dependencies]
-embedded-hal = "0.2.3"
+embedded-hal = "0.2.5"
 log = { version = "0.4.6", optional = true }
 bitflags = "1.0.4"
 
