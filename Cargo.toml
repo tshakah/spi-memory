@@ -1,11 +1,11 @@
 [package]
-name = "spi-memory"
-version = "0.2.0"
-authors = ["Jonas Schievink <jonasschievink@gmail.com>", "Henrik Böving <hargonix@gmail.com>"]
+name = "w25q"
+version = "0.2.6"
+authors = ["Jonas Schievink <jonasschievink@gmail.com>", "Henrik Böving <hargonix@gmail.com>", "David O'Connor <the_alchemist@fastmail.com>", "Diego Frenoux <diego@churrosoft.ar>"]
 edition = "2018"
 description = "A generic driver for different SPI Flash and EEPROM chips"
 documentation = "https://docs.rs/spi-memory/"
-repository = "https://github.com/jonas-schievink/spi-memory.git"
+repository = "https://github.com/Churrosoft/spi-memory"
 keywords = ["embedded-hal-driver", "serial", "flash", "eeprom", "spi"]
 categories = ["embedded"]
 readme = "README.md"
@@ -27,14 +27,14 @@ replace = "## Unreleased\n\nNo changes.\n\n## {{version}} - {{date}}"
 # Bump the version inside the example manifest in `README.md`
 [[package.metadata.release.pre-release-replacements]]
 file    = "README.md"
-search  = 'spi-memory = "[a-z0-9\\.-]+"'
-replace = 'spi-memory = "{{version}}"'
+search  = 'w25q = "[a-z0-9\\.-]+"'
+replace = 'w25q = "{{version}}"'
 
 # Bump the version referenced by the `html_root_url` attribute in `lib.rs`
 [[package.metadata.release.pre-release-replacements]]
 file    = "src/lib.rs"
-search  = "https://docs.rs/spi-memory/[a-z0-9\\.-]+"
-replace = "https://docs.rs/spi-memory/{{version}}"
+search  = "https://docs.rs/w25q/[a-z0-9\\.-]+"
+replace = "https://docs.rs/w25q/{{version}}"
 
 [dependencies]
 embedded-hal = "0.2.5"

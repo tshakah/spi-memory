@@ -1,6 +1,6 @@
 //! Driver for 25-series SPI Flash and EEPROM chips.
 
-use crate::{utils::HexSlice, BlockDevice, Error, Read};
+use crate::{utils::HexSlice, Error};
 use bitflags::bitflags;
 use core::convert::TryInto;
 use core::fmt;
@@ -107,6 +107,27 @@ bitflags! {
     }
 }
 
+pub struct FlashInfo {
+    pub id: u32,
+    pub page_size: u16,
+    pub sector_size: u32,
+    pub page_count: u32,
+    pub sector_count: u32,
+    pub block_size: u32,
+    pub block_count: u32,
+    pub capacity_kb: u32,
+}
+
+impl fmt::Debug for FlashInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("FlashInfo")
+            .field(&self.id)
+            .field(&format_args!("_KB:_"))
+            .field(&self.capacity_kb)
+            .finish()
+    }
+}
+
 /// Driver for 25-series SPI Flash chips.
 ///
 /// # Type Parameters
@@ -182,7 +203,47 @@ impl<CS: OutputPin> Flash<CS> {
         Ok(Status::from_bits_truncate(buf[1]))
     }
 
-    fn write_enable<SPI: Transfer<u8>>(&mut self, spi: &mut SPI) -> Result<(), Error<SPI, CS>> {
+    pub fn get_device_info<SPI: Transfer<u8>>(
+        &mut self,
+        spi: &mut SPI,
+    ) -> Result<FlashInfo, Error<SPI, CS>> {
+        let mut buf: [u8; 12] = [0; 12];
+        buf[0] = Opcode::ReadJedecId as u8;
+        self.command(spi, &mut buf)?;
+
+        let full_id: u32 =
+            (((buf[1] as u32) << 16) | ((buf[2] as u32) << 8) | (buf[3] as u32)) & 0x000000FF;
+
+        let block_count = match full_id {
+            0x20 => 1024, // W25Q512
+            0x19 => 512,  // W25Q256
+            0x18 => 256,  // W25Q128
+            0x17 => 128,  // W25Q64
+            0x16 => 64,   // W25Q32
+            0x15 => 32,   // W25Q16
+            0x14 => 16,   // W25Q80
+            0x13 => 8,    // W25Q40
+            0x12 => 4,    // W25Q20
+            0x11 => 2,    // W25Q10
+            33_u32..=u32::MAX => 0,
+            0_u32..=16_u32 => 0,
+            26_u32..=31_u32 => 0,
+        };
+
+        let device_info = FlashInfo {
+            id: 0,
+            page_size: 256,
+            sector_size: 0x1000,
+            sector_count: block_count * 16,
+            page_count: (block_count * 16 * 0x1000) / 256,
+            block_size: 0x1000 * 16,
+            block_count,
+            capacity_kb: (0x1000 * 16 * block_count) / 1024,
+        };
+        return Ok(device_info);
+    }
+
+    pub fn write_enable<SPI: Transfer<u8>>(&mut self, spi: &mut SPI) -> Result<(), Error<SPI, CS>> {
         let mut cmd_buf = [Opcode::WriteEnable as u8];
         self.command(spi, &mut cmd_buf)?;
         Ok(())
@@ -241,9 +302,7 @@ impl<CS: OutputPin> Flash<CS> {
 
         Ok(())
     }
-}
 
-impl<SPI: Transfer<u8>, CS: OutputPin> Read<u32, SPI, CS> for Flash<CS> {
     /// Reads flash contents into `buf`, starting at `addr`.
     ///
     /// Note that `addr` is not fully decoded: Flash chips will typically only
@@ -256,7 +315,12 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Read<u32, SPI, CS> for Flash<CS> {
     ///
     /// * `addr`: 24-bit address to start reading at.
     /// * `buf`: Destination buffer to fill.
-    fn read(&mut self, spi: &mut SPI, addr: u32, buf: &mut [u8]) -> Result<(), Error<SPI, CS>> {
+    pub fn read<SPI: Transfer<u8>>(
+        &mut self,
+        spi: &mut SPI,
+        addr: u32,
+        buf: &mut [u8],
+    ) -> Result<(), Error<SPI, CS>> {
         // TODO what happens if `buf` is empty?
 
         let mut cmd_buf = [
@@ -274,10 +338,8 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Read<u32, SPI, CS> for Flash<CS> {
         self.cs.set_high().map_err(Error::Gpio)?;
         spi_result.map(|_| ()).map_err(Error::Spi)
     }
-}
 
-impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<CS> {
-    fn erase_sectors(
+    pub fn erase_sectors<SPI: Transfer<u8>>(
         &mut self,
         spi: &mut SPI,
         addr: u32,
@@ -300,7 +362,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<CS> {
         Ok(())
     }
 
-    fn write_bytes(
+    pub fn write_bytes<SPI: Transfer<u8>>(
         &mut self,
         spi: &mut SPI,
         addr: u32,
@@ -329,12 +391,51 @@ impl<SPI: Transfer<u8>, CS: OutputPin> BlockDevice<u32, SPI, CS> for Flash<CS> {
         Ok(())
     }
 
-    fn erase_all(&mut self, spi: &mut SPI) -> Result<(), Error<SPI, CS>> {
+    pub fn erase_block<SPI: Transfer<u8>>(
+        &mut self,
+        spi: &mut SPI,
+        addr: u32,
+    ) -> Result<(), Error<SPI, CS>> {
+        self.write_enable(spi)?;
+
+        let mut cmd_buf = [
+            Opcode::BlockErase as u8,
+            (addr >> 16) as u8,
+            (addr >> 8) as u8,
+            addr as u8,
+        ];
+        self.command(spi, &mut cmd_buf)?;
+        self.wait_done(spi)
+    }
+
+    pub fn erase_all<SPI: Transfer<u8>>(&mut self, spi: &mut SPI) -> Result<(), Error<SPI, CS>> {
         self.write_enable(spi)?;
         let mut cmd_buf = [Opcode::ChipErase as u8];
         self.command(spi, &mut cmd_buf)?;
         self.wait_done(spi)?;
         Ok(())
+    }
+}
+
+impl FlashInfo {
+    pub fn page_to_sector(&self, page_address: &u32) -> u32 {
+        return (page_address * (self.page_size) as u32) / self.sector_size;
+    }
+
+    pub fn page_to_block(&self, page_address: &u32) -> u32 {
+        return (page_address * (self.page_size) as u32) / self.block_size;
+    }
+
+    pub fn sector_to_block(&self, sector_address: &u32) -> u32 {
+        return (sector_address * (self.sector_size) as u32) / self.block_size;
+    }
+
+    pub fn sector_to_page(&self, sector_address: &u32) -> u32 {
+        return (sector_address * (self.sector_size) as u32) / (self.page_size) as u32;
+    }
+
+    pub fn block_to_page(&self, block_adress: &u32) -> u32 {
+        return (block_adress * (self.block_size) as u32) / (self.page_size) as u32;
     }
 }
 

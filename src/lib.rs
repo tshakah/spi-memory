@@ -48,6 +48,9 @@ pub trait BlockDevice<Addr, SPI: Transfer<u8>, CS: OutputPin> {
         amount: usize,
     ) -> Result<(), Error<SPI, CS>>;
 
+    // Erases one block
+    fn erase_block(&mut self, addr: u32) -> Result<(), Error<SPI, CS>>;
+
     /// Erases the memory chip fully.
     ///
     /// Warning: Full erase operations can take a significant amount of time.
