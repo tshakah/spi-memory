@@ -150,7 +150,7 @@ impl<'a, SPI: Transfer<u8>, CS: OutputPin> Flash<'a, SPI, CS> {
     ///   mode for the device.
     /// * **`cs`**: The **C**hip-**S**elect Pin connected to the `\CS`/`\CE` pin
     ///   of the flash chip. Will be driven low when accessing the device.
-    pub fn init(&mut self, spi: &'a mut SPI, cs: &'a mut CS) -> Result<Self, Error<SPI, CS>> {
+    pub fn init(spi: &'a mut SPI, cs: &'a mut CS) -> Result<Self, Error<SPI, CS>> {
         let mut this = Self { cs, spi };
 
         let status = this.read_status()?;
