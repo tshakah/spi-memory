@@ -136,12 +136,14 @@ impl fmt::Debug for FlashInfo {
 /// * **`CS`**: The **C**hip-**S**elect line attached to the `\CS`/`\CE` pin of
 ///   the flash chip.
 #[derive(Debug)]
-pub struct Flash<'a, SPI, CS: OutputPin> {
-    spi: &'a mut SPI,
-    cs: &'a mut CS,
+pub struct Flash<SPI, CS: OutputPin> {
+    spi: SPI,
+    cs: CS,
 }
 
-impl<'a, SPI: Transfer<u8>, CS: OutputPin> Flash<'a, SPI, CS> {
+// for multiple SPI use: https://crates.io/crates/shared-bus-rtic
+
+impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     /// Creates a new 25-series flash driver.
     ///
     /// # Parameters
@@ -150,7 +152,7 @@ impl<'a, SPI: Transfer<u8>, CS: OutputPin> Flash<'a, SPI, CS> {
     ///   mode for the device.
     /// * **`cs`**: The **C**hip-**S**elect Pin connected to the `\CS`/`\CE` pin
     ///   of the flash chip. Will be driven low when accessing the device.
-    pub fn init(spi: &'a mut SPI, cs: &'a mut CS) -> Result<Self, Error<SPI, CS>> {
+    pub fn init(spi: SPI, cs: CS) -> Result<Self, Error<SPI, CS>> {
         let mut this = Self { cs, spi };
 
         let status = this.read_status()?;
