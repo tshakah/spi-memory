@@ -21,11 +21,10 @@ mod utils;
 
 pub use crate::error::Error;
 
-use embedded_hal::blocking::spi::Transfer;
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::{digital::OutputPin, spi::SpiBus};
 
 /// A trait for reading operations from a memory chip.
-pub trait Read<Addr, SPI: Transfer<u8>, CS: OutputPin> {
+pub trait Read<Addr, SPI: SpiBus<u8>, CS: OutputPin> {
     /// Reads bytes from a memory chip.
     ///
     /// # Parameters
@@ -35,7 +34,7 @@ pub trait Read<Addr, SPI: Transfer<u8>, CS: OutputPin> {
 }
 
 /// A trait for writing and erasing operations on a memory chip.
-pub trait BlockDevice<Addr, SPI: Transfer<u8>, CS: OutputPin> {
+pub trait BlockDevice<Addr, SPI: SpiBus<u8>, CS: OutputPin> {
     /// Erases sectors from the memory chip.
     ///
     /// # Parameters

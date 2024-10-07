@@ -1,2 +1,12 @@
 target
 Cargo.lock
+.envrc.local
+
+# pre-commit
+.pre-commit-config.yaml
+
+# direnv
+.direnv
+
+# nix build artifacts
+/result

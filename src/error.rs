@@ -1,6 +1,5 @@
 use core::fmt::{self, Debug, Display};
-use embedded_hal::blocking::spi::Transfer;
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::{digital::OutputPin, spi::SpiBus};
 
 mod private {
     #[derive(Debug)]
@@ -11,7 +10,7 @@ mod private {
 ///
 /// This can encapsulate an SPI or GPIO error, and adds its own protocol errors
 /// on top of that.
-pub enum Error<SPI: Transfer<u8>, GPIO: OutputPin> {
+pub enum Error<SPI: SpiBus<u8>, GPIO: OutputPin> {
     /// An SPI transfer failed.
     Spi(SPI::Error),
 
@@ -29,7 +28,7 @@ pub enum Error<SPI: Transfer<u8>, GPIO: OutputPin> {
     __NonExhaustive(private::Private),
 }
 
-impl<SPI: Transfer<u8>, GPIO: OutputPin> Debug for Error<SPI, GPIO>
+impl<SPI: SpiBus<u8>, GPIO: OutputPin> Debug for Error<SPI, GPIO>
 where
     SPI::Error: Debug,
     GPIO::Error: Debug,
@@ -44,7 +43,7 @@ where
     }
 }
 
-impl<SPI: Transfer<u8>, GPIO: OutputPin> Display for Error<SPI, GPIO>
+impl<SPI: SpiBus<u8>, GPIO: OutputPin> Display for Error<SPI, GPIO>
 where
     SPI::Error: Display,
     GPIO::Error: Display,

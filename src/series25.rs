@@ -4,8 +4,9 @@ use crate::{utils::HexSlice, Error};
 use bitflags::bitflags;
 use core::convert::TryInto;
 use core::fmt;
-use embedded_hal::blocking::{delay::DelayUs, spi::Transfer};
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::delay::DelayNs;
+use embedded_hal::digital::OutputPin;
+use embedded_hal::spi::SpiBus;
 
 /// 3-Byte JEDEC manufacturer and device identification.
 pub struct Identification {
@@ -95,6 +96,7 @@ enum Opcode {
 
 bitflags! {
     /// Status register bits.
+    #[derive(Debug)]
     pub struct Status: u8 {
         /// Erase or write in progress.
         const BUSY = 1 << 0;
@@ -143,7 +145,7 @@ pub struct Flash<SPI, CS: OutputPin> {
 
 // for multiple SPI use: https://crates.io/crates/shared-bus-rtic
 
-impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
+impl<SPI: SpiBus<u8>, CS: OutputPin> Flash<SPI, CS> {
     /// Creates a new 25-series flash driver.
     ///
     /// # Parameters
@@ -170,7 +172,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     fn command(&mut self, bytes: &mut [u8]) -> Result<(), Error<SPI, CS>> {
         // If the SPI transfer fails, make sure to disable CS anyways
         self.cs.set_low().map_err(Error::Gpio)?;
-        let spi_result = self.spi.transfer(bytes).map_err(Error::Spi);
+        let spi_result = self.spi.write(bytes).map_err(Error::Spi);
         self.cs.set_high().map_err(Error::Gpio)?;
         spi_result?;
         Ok(())
@@ -250,8 +252,8 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     /// reduced  with  the  Power-down  instruction.  The  lower  power  consumption  makes  the  Power-down
     /// instruction especially useful for battery powered applications (See ICC1 and ICC2 in AC Characteristics).
     /// The instruction is initiated by driving the /CS pin low and shifting the instruction code “B9h” as shown in
-    /// Figure 44.  
-    ///  
+    /// Figure 44.
+    ///
     /// The /CS pin must be driven high after the eighth bit has been latched. If this is not done the Power-down
     /// instruction will not be executed. After /CS is driven high, the power-down state will entered within the time
     /// duration of tDP (See AC Characteristics). While in the power-down state only the Release Power-down /
@@ -259,7 +261,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     /// instructions  are  ignored.  This  includes  the  Read  Status  Register  instruction,  which  is  always  available
     /// during normal operation. Ignoring all but one instruction makes the Power Down state a useful condition
     /// for  securing maximum  write protection. The  device  always  powers-up  in the  normal  operation with  the
-    /// standby current of ICC1.   
+    /// standby current of ICC1.
     pub fn power_down(&mut self) -> Result<(), Error<SPI, CS>> {
         let mut buf = [Opcode::PowerDown as u8];
         self.command(&mut buf)?;
@@ -270,7 +272,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     /// Exits Power Down Mode
     /// Datasheet, 8.2.36: Release Power-down:
     /// The Release from Power-down /  Device ID instruction is  a multi-purpose instruction. It can be used to
-    /// release the device from the power-down state, or obtain the devices electronic identification (ID) number.   
+    /// release the device from the power-down state, or obtain the devices electronic identification (ID) number.
     /// To  release the device  from  the  power-down state,  the instruction  is  issued by driving the  /CS  pin low,
     /// shifting the instruction code “ABh” and driving /CS high as shown in Figure 45. Release from power-down
     /// will  take  the  time  duration  of  tRES1  (See  AC  Characteristics)  before  the  device  will  resume  normal
@@ -278,15 +280,12 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     /// duration.
     ///
     /// Note: must manually delay after running this, IOC
-    pub fn release_power_down<D: DelayUs<u8>>(
-        &mut self,
-        delay: &mut D,
-    ) -> Result<(), Error<SPI, CS>> {
+    pub fn release_power_down<D: DelayNs>(&mut self, delay: &mut D) -> Result<(), Error<SPI, CS>> {
         // Same command as reading ID.. Wakes instead of reading ID if not followed by 3 dummy bytes.
         let mut buf = [Opcode::ReadDeviceId as u8];
         self.command(&mut buf)?;
 
-        delay.delay_us(6); // Table 9.7: AC Electrical Characteristics: tRES1 = max 3us.
+        delay.delay_us(6000); // Table 9.7: AC Electrical Characteristics: tRES1 = max 3us.
 
         Ok(())
     }
@@ -314,9 +313,9 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
         ];
 
         self.cs.set_low().map_err(Error::Gpio)?;
-        let mut spi_result = self.spi.transfer(&mut cmd_buf);
+        let mut spi_result = self.spi.write(&mut cmd_buf);
         if spi_result.is_ok() {
-            spi_result = self.spi.transfer(buf);
+            spi_result = self.spi.write(buf);
         }
         self.cs.set_high().map_err(Error::Gpio)?;
         spi_result.map(|_| ()).map_err(Error::Spi)
@@ -353,9 +352,9 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
             ];
 
             self.cs.set_low().map_err(Error::Gpio)?;
-            let mut spi_result = self.spi.transfer(&mut cmd_buf);
+            let mut spi_result = self.spi.write(&mut cmd_buf);
             if spi_result.is_ok() {
-                spi_result = self.spi.transfer(chunk);
+                spi_result = self.spi.write(chunk);
             }
             self.cs.set_high().map_err(Error::Gpio)?;
             spi_result.map(|_| ()).map_err(Error::Spi)?;
