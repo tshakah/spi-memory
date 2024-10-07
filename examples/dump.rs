@@ -14,20 +14,19 @@
 
 extern crate panic_semihosting;
 
+use cortex_m::prelude::_embedded_hal_serial_Write as Write;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::serial::Write;
 use embedded_hal::spi::MODE_0;
 use stm32f4xx_hal::gpio::GpioExt;
+use stm32f4xx_hal::pac;
+use stm32f4xx_hal::prelude::*;
 use stm32f4xx_hal::rcc::RccExt;
-use stm32f4xx_hal::serial::{self, Serial};
-use stm32f4xx_hal::spi::Spi;
-use stm32f4xx_hal::stm32 as pac;
-use stm32f4xx_hal::time::{Bps, MegaHertz};
+use stm32f4xx_hal::serial::{self, SerialExt};
+use stm32f4xx_hal::spi::SpiExt;
+use stm32f4xx_hal::time::Bps;
 
-use spi_memory::prelude::*;
-use spi_memory::series25::Flash;
+use w25q::series25::Flash;
 
 use core::fmt::Write as _;
 
@@ -55,37 +54,31 @@ fn main() -> ! {
 
     let cs = {
         let mut cs = gpioa.pa9.into_push_pull_output();
-        cs.set_high().unwrap(); // deselect
+        cs.set_high(); // deselect
         cs
     };
 
     let spi = {
-        let sck = gpioa.pa5.into_alternate_af5();
-        let miso = gpioa.pa6.into_alternate_af5();
-        let mosi = gpioa.pa7.into_alternate_af5();
+        let sck = gpioa.pa5.into_alternate();
+        let miso = gpioa.pa6.into_alternate();
+        let mosi = gpioa.pa7.into_alternate();
 
-        Spi::spi1(
-            periph.SPI1,
-            (sck, miso, mosi),
-            MODE_0,
-            MegaHertz(1).into(),
-            clocks,
-        )
+        periph.SPI1.spi((sck, miso, mosi), MODE_0, 1.MHz(), &clocks)
     };
 
     let mut serial = {
-        let tx = gpioa.pa2.into_alternate_af7();
+        let tx = gpioa.pa2.into_alternate();
 
         let config = serial::config::Config {
             baudrate: Bps(BAUDRATE),
             ..Default::default()
         };
-        Serial::usart2(periph.USART2, (tx, serial::NoRx), config, clocks).unwrap()
+        periph.USART2.tx(tx, config, &clocks).unwrap()
     };
 
     let mut flash = Flash::init(spi, cs).unwrap();
     let id = flash.read_jedec_id().unwrap();
-    hprintln!("{:?}", id).ok();
+    hprintln!("{:?}", id);
 
     let mut addr = 0;
     const BUF: usize = 32;
@@ -98,7 +91,7 @@ fn main() -> ! {
         addr += BUF as u32;
     }
 
-    hprintln!("DONE").ok();
+    hprintln!("DONE");
 
     loop {}
 }
