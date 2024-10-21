@@ -330,7 +330,7 @@ impl<SPI: SpiBus<u8>, CS: OutputPin> Flash<SPI, CS> {
         self.cs.set_low().map_err(Error::Gpio)?;
         let mut spi_result = self.spi.write(&mut cmd_buf);
         if spi_result.is_ok() {
-            spi_result = self.spi.write(buf);
+            spi_result = self.spi.read(buf);
         }
         self.cs.set_high().map_err(Error::Gpio)?;
         spi_result.map(|_| ()).map_err(Error::Spi)
